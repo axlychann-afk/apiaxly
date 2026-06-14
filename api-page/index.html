@@ -161,19 +161,73 @@
 
 <!-- PRELOADER -->
 <div id="preloader" class="fixed inset-0 z-[99999] flex items-center justify-center bg-black overflow-hidden">
-  <div class="absolute w-72 h-72 bg-indigo-600/20 rounded-full blur-3xl animate-pulse"></div>
-  <div class="absolute w-48 h-48 bg-purple-600/20 rounded-full blur-3xl animate-pulse" style="animation-delay:.3s"></div>
-  <div class="relative z-10 flex flex-col items-center gap-4">
+  <!-- Dot matrix canvas -->
+  <canvas id="preloader-canvas" class="absolute inset-0 w-full h-full"></canvas>
+  <!-- Radial fade overlay -->
+  <div class="absolute inset-0" style="background:radial-gradient(ellipse at center, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.1) 60%, transparent 100%)"></div>
+  <div class="absolute bottom-0 left-0 right-0 h-1/2" style="background:linear-gradient(to top,#000,transparent)"></div>
+  <!-- Content -->
+  <div class="relative z-10 flex flex-col items-center gap-5">
     <div class="relative">
-      <div class="absolute inset-0 bg-indigo-500 blur-xl opacity-40 rounded-full"></div>
-      <div class="w-20 h-20 rounded-2xl relative z-10 overflow-hidden" style="animation:spin 3s linear infinite">
-        <img src="/assets/icon.png" alt="logo" class="w-full h-full object-cover">
+      <div class="absolute inset-0 bg-indigo-500 blur-2xl opacity-35 rounded-full scale-150"></div>
+      <div class="w-16 h-16 rounded-2xl relative z-10 overflow-hidden border border-white/10">
+        <img src="/api/assets/icon.png" alt="logo" class="w-full h-full object-cover">
       </div>
     </div>
     <h1 class="text-3xl font-bold gradient-text">Axly API</h1>
-    <p class="text-slate-500 text-xs tracking-[5px]">LOADING...</p>
+    <div class="flex items-center gap-2 text-slate-500 text-xs tracking-[4px]">
+      <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"></span>
+      LOADING
+      <span class="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse" style="animation-delay:.3s"></span>
+    </div>
   </div>
 </div>
+<script>
+(function(){
+  var canvas = document.getElementById('preloader-canvas');
+  if(!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var raf, start = 0;
+  var TOTAL = 20, DOT = 3.5;
+  var COLORS = [[99,102,241],[139,92,246],[168,85,247]];
+  var OPS = [0.3,0.3,0.3,0.5,0.5,0.5,0.8,0.8,0.8,1];
+  var PHI = 1.6180339887;
+  function rnd(x,y){ var d=Math.hypot((x*PHI-y)*x,(y*PHI-x)*y); return Math.abs(Math.tan(d*0.5)*x)%1; }
+  function resize(){ canvas.width=innerWidth*devicePixelRatio; canvas.height=innerHeight*devicePixelRatio; }
+  resize();
+  window.addEventListener('resize', resize);
+  function draw(ts){
+    if(!start) start=ts;
+    var t=(ts-start)/1000;
+    var W=canvas.width, H=canvas.height, dpr=devicePixelRatio;
+    var sc=TOTAL*dpr;
+    ctx.clearRect(0,0,W,H);
+    var cols=Math.ceil(W/sc)+1, rows=Math.ceil(H/sc)+1;
+    var cx=cols/2, cy=rows/2;
+    for(var col=0;col<cols;col++){
+      for(var row=0;row<rows;row++){
+        var so=rnd(col,row);
+        var freq=5, rand=rnd(col*Math.floor(t/freq+so+freq),row*Math.floor(t/freq+so+freq));
+        var op=OPS[Math.min(Math.floor(rand*10),9)];
+        var dist=Math.hypot(col-cx,row-cy);
+        var off=dist*0.01+rnd(col,row)*0.15;
+        var spd=t*0.5;
+        if(spd<off){ op=0; } else { op*=Math.min(1,(spd-off)/0.2); }
+        if(op<0.02) continue;
+        var ci=Math.min(Math.floor(so*3),2);
+        var c=COLORS[ci];
+        ctx.beginPath();
+        ctx.arc(col*sc, row*sc, DOT*dpr/2, 0, Math.PI*2);
+        ctx.fillStyle='rgba('+c[0]+','+c[1]+','+c[2]+','+op+')';
+        ctx.fill();
+      }
+    }
+    raf=requestAnimationFrame(draw);
+  }
+  raf=requestAnimationFrame(draw);
+  window._stopPreloaderCanvas=function(){ cancelAnimationFrame(raf); };
+})();
+</script>
 
 <!-- PARALLAX -->
 <div id="parallax-bg"></div>
@@ -680,7 +734,7 @@ async function loadApis() {
       if (r.ok) data = await r.json();
     } catch {}
     if (!data) {
-      const r = await fetch('/assets/settings.json');
+      const r = await fetch('/api/assets/settings.json');
       data = await r.json();
     }
 
@@ -793,9 +847,10 @@ window.addEventListener('load', () => {
   const pl = document.getElementById('preloader');
   if (!pl) return;
   setTimeout(() => {
+    if(window._stopPreloaderCanvas) window._stopPreloaderCanvas();
     pl.classList.add('preloader-hide');
     setTimeout(() => pl.remove(), 500);
-  }, 2000);
+  }, 2200);
 });
 </script>
 </body>

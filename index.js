@@ -4,7 +4,7 @@ const fs = require('fs');
 const cors = require('cors');
 const path = require('path');
 const axios = require('axios');
-const multer = require('multer'); // TAMBAHKAN INI
+const multer = require('multer');
 
 require("./function.js");
 
@@ -28,89 +28,56 @@ process.on('SIGTERM', () => { _saveStats(); process.exit(0); });
 process.on('SIGINT',  () => { _saveStats(); process.exit(0); });
 // ════════════════════════════════════════════════════
 
-
 const app = express();
-const PORT = process.env.PORT || 8080;
+const PORT = process.env.PORT || 3000;
 
-// Konfigurasi multer untuk upload file (memory storage)
 const upload = multer({ storage: multer.memoryStorage() });
-global.upload = upload; // biar bisa dipake di semua endpoint
+global.upload = upload;
 
-// Ganti webhook Discord lu disini:
 const WEBHOOK_URL = 'https://discord.com/api/webhooks/1396122030163628112/-vEj4HjREjbaOVXDu5932YjeHpTkjNSKyUKugBFF9yVCBeQSrdgK8qM3HNxVYTOD5BYP';
 
-// Buffer untuk batch log
 let logBuffer = [];
-
-// Kirim batch tiap detik
 setInterval(() => {
     if (logBuffer.length === 0) return;
-
     const combinedLogs = logBuffer.join('\n');
     logBuffer = [];
-
     const payload = ` \`\`\`ansi\n${combinedLogs}\n\`\`\``;
-
-    axios.post(WEBHOOK_URL, { content: payload }).catch(console.error);
+    axios.post(WEBHOOK_URL, { content: payload }).catch(() => {});
 }, 2000);
 
-// Function log queue
 function queueLog({ method, status, url, duration, error = null }) {
     let colorCode;
     if (status >= 500) colorCode = '\u001b[2;31m';
     else if (status >= 400) colorCode = '\u001b[2;31m';
     else if (status === 304) colorCode = '\u001b[2;34m';
     else colorCode = '\u001b[2;32m';
-
     let line = `${colorCode}[${method}] ${status} ${url} - ${duration}ms\u001b[0m`;
-
-    if (error) {
-        line += `\n\u001b[2;31m[ERROR] ${error.message || error}\u001b[0m`;
-    }
-
+    if (error) line += `\n\u001b[2;31m[ERROR] ${error.message || error}\u001b[0m`;
     logBuffer.push(line);
 }
 
-// Cooldown vars
+// Cooldown
 let requestCount = 0;
 let isCooldown = false;
-
-setInterval(() => {
-    requestCount = 0;
-}, 1000);
+setInterval(() => { requestCount = 0; }, 1000);
 
 app.use((req, res, next) => {
     if (isCooldown) {
-        queueLog({
-            method: req.method,
-            status: 503,
-            url: req.originalUrl,
-            duration: 0,
-            error: 'Server is in cooldown'
-        });
+        queueLog({ method: req.method, status: 503, url: req.originalUrl, duration: 0, error: 'Cooldown' });
         return res.status(503).json({ error: 'Server is in cooldown, try again later.' });
     }
-
     requestCount++;
-
-    if (requestCount > 10) {
+    if (requestCount > 30) {
         isCooldown = true;
         const cooldownTime = (Math.random() * (120000 - 60000) + 60000).toFixed(3);
-
         console.log(`⚠️ SPAM DETECT: Cooldown ${cooldownTime / 1000} detik`);
-        const userTag = '<@1162931657276395600>';
-        const spamMsg = `${userTag}\n\`\`\`ansi\n⚠️ [ SPAM DETECT ] ⚠️\n\n[ ! ] Too many requests, server cooldown for ${cooldownTime / 1000} sec!\n\n\u001b[2;31m[${req.method}] 503 ${req.originalUrl} - 0ms\u001b[0m\n\`\`\``;
-
-        axios.post(WEBHOOK_URL, { content: spamMsg }).catch(console.error);
-
+        axios.post(WEBHOOK_URL, { content: `⚠️ SPAM DETECT — cooldown ${cooldownTime / 1000}s` }).catch(() => {});
         setTimeout(() => {
             isCooldown = false;
-            console.log('✅ Cooldown selesai, server aktif lagi');
+            console.log('✅ Cooldown selesai');
         }, cooldownTime);
-
         return res.status(503).json({ error: 'Too many requests, server cooldown!' });
     }
-
     next();
 });
 
@@ -125,49 +92,61 @@ const settingsPath = path.join(__dirname, './assets/settings.json');
 const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
 global.apikey = settings.apiSettings.apikey;
 
-// Custom Log + Wrap res.json + Batch log semua response
+// Logging middleware
 app.use((req, res, next) => {
-    console.log(chalk.bgHex('#FFFF99').hex('#333').bold(` Request Route: ${req.path} `));
-    if (req.path !== '/api/stats') global.totalreq += 1;
-
+    console.log(chalk.bgHex('#FFFF99').hex('#333').bold(` Request: ${req.path} `));
+    if (!req.path.endsWith('/stats')) global.totalreq += 1;
     const start = Date.now();
-    const originalJson = res.json;
-
+    const originalJson = res.json.bind(res);
     res.json = function (data) {
         if (data && typeof data === 'object') {
-            const responseData = {
-                status: data.status,
-                creator: settings.apiSettings.creator || "Axly API",
-                ...data
-            };
-            return originalJson.call(this, responseData);
+            return originalJson({ status: data.status, creator: settings.apiSettings.creator || "Axly API", ...data });
         }
-        return originalJson.call(this, data);
+        return originalJson(data);
     };
-
     res.on('finish', () => {
-        const duration = Date.now() - start;
-
-        queueLog({
-            method: req.method,
-            status: res.statusCode,
-            url: req.originalUrl,
-            duration
-        });
+        queueLog({ method: req.method, status: res.statusCode, url: req.originalUrl, duration: Date.now() - start });
     });
-
     next();
 });
 
-// Static & Src Protect
-app.use('/', express.static(path.join(__dirname, 'api-page')));
+// ════════════════════════════════════════════════════
+// STATIC — Landing Page at /
+// ════════════════════════════════════════════════════
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ════════════════════════════════════════════════════
+// DASHBOARD at /dashboard
+// ════════════════════════════════════════════════════
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
+
+app.get(['/dashboard', '/dashboard/'], (req, res) => {
+    res.sendFile(path.join(__dirname, 'api-page', 'index.html'));
+});
 
 app.use('/src', (req, res) => {
     res.status(403).json({ error: 'Forbidden access' });
 });
 
-// Load API routes dinamis dari src/api/
+// Stats endpoint
+app.get('/stats', (req, res) => {
+  res.json({
+    status: true,
+    totalRequests: global.totalreq,
+    startTime: global.startTime,
+    runtime: Date.now() - global.startTime,
+    uptime: process.uptime()
+  });
+});
+
+// Settings endpoint (for the dashboard HTML)
+app.get('/settings', (req, res) => {
+  res.json(settings);
+});
+
+// ════════════════════════════════════════════════════
+// DYNAMIC API ROUTES
+// ════════════════════════════════════════════════════
 let totalRoutes = 0;
 const apiFolder = path.join(__dirname, './src/api');
 fs.readdirSync(apiFolder).forEach((subfolder) => {
@@ -176,64 +155,48 @@ fs.readdirSync(apiFolder).forEach((subfolder) => {
         fs.readdirSync(subfolderPath).forEach((file) => {
             const filePath = path.join(subfolderPath, file);
             if (path.extname(file) === '.js') {
-                require(filePath)(app);
-                totalRoutes++;
-                console.log(chalk.bgHex('#FFFF99').hex('#333').bold(` Loaded Route: ${path.basename(file)} `));
+                try {
+                    require(filePath)(app);
+                    totalRoutes++;
+                    console.log(chalk.bgHex('#FFFF99').hex('#333').bold(` Loaded: ${path.basename(file)} `));
+                } catch (e) {
+                    console.log(chalk.bgRed.white(` Skip (error): ${path.basename(file)} — ${e.message} `));
+                }
             }
         });
     }
 });
 
 console.log(chalk.bgHex('#90EE90').hex('#333').bold(' Load Complete! ✓ '));
-console.log(chalk.bgHex('#90EE90').hex('#333').bold(` Total Routes Loaded: ${totalRoutes} `));
+console.log(chalk.bgHex('#90EE90').hex('#333').bold(` Total Routes: ${totalRoutes} `));
 
-// Index route
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'api-page', 'index.html'));
-});
-
-
-// ── /api/stats ──────────────────────────────────────
-app.get('/api/stats', (req, res) => {
-  res.json({
-    status: true,
-    totalRequests: global.totalreq,
-    startTime:     global.startTime,
-    runtime:       Date.now() - global.startTime,
-    uptime:        process.uptime()
-  });
-});
-// ────────────────────────────────────────────────────
-
-// Error handler 404 & 500 + batch log
+// ════════════════════════════════════════════════════
+// SPA fallback — serve landing page for unknown routes
+// ════════════════════════════════════════════════════
 app.use((req, res, next) => {
-    queueLog({
-        method: req.method,
-        status: 404,
-        url: req.originalUrl,
-        duration: 0,
-        error: 'Not Found'
-    });
-
-    res.status(404).sendFile(process.cwd() + "/api-page/404.html");
+    // If it looks like an API route (not a file/dashboard), return 404 JSON
+    if (req.path.startsWith('/dashboard')) {
+        return res.status(404).sendFile(path.join(__dirname, 'api-page', '404.html'));
+    }
+    // Otherwise serve landing page (SPA fallback)
+    const indexPath = path.join(__dirname, 'public', 'index.html');
+    if (fs.existsSync(indexPath)) {
+        return res.sendFile(indexPath);
+    }
+    next();
 });
 
+// Global error handler
 app.use((err, req, res, next) => {
     console.error(err.stack);
-
-    queueLog({
-        method: req.method,
-        status: 500,
-        url: req.originalUrl,
-        duration: 0,
-        error: err
-    });
-
-    res.status(500).sendFile(process.cwd() + "/api-page/500.html");
+    queueLog({ method: req.method, status: 500, url: req.originalUrl, duration: 0, error: err });
+    res.status(500).sendFile(path.join(__dirname, 'api-page', '500.html'));
 });
 
 app.listen(PORT, () => {
-    console.log(chalk.bgHex('#90EE90').hex('#333').bold(` Server is running on port ${PORT} `));
+    console.log(chalk.bgHex('#90EE90').hex('#333').bold(` ✅ Axly API running at http://localhost:${PORT} `));
+    console.log(chalk.bgHex('#90EE90').hex('#333').bold(` 🏠 Landing  : http://localhost:${PORT}/ `));
+    console.log(chalk.bgHex('#90EE90').hex('#333').bold(` 📊 Dashboard: http://localhost:${PORT}/dashboard `));
 });
 
 module.exports = app;
