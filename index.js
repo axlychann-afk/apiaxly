@@ -179,23 +179,21 @@ console.log(chalk.bgHex('#90EE90').hex('#333').bold(' Load Complete! ✓ '));
 console.log(chalk.bgHex('#90EE90').hex('#333').bold(` Total Routes: ${totalRoutes} `));
 
 // ════════════════════════════════════════════════════
-// LANDING PAGE at /home
-// Inject replaceState so wouter sees "/" and renders the landing page
+// LANDING PAGE at / (root)
 // ════════════════════════════════════════════════════
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// /home → redirect to landing page
 app.get('/home', (req, res) => {
-    const htmlPath = path.join(__dirname, 'public', 'index.html');
-    let html = fs.readFileSync(htmlPath, 'utf8');
-    html = html.replace(
-        '</head>',
-        '<script>history.replaceState(null,"","/");</script></head>'
-    );
-    res.type('html').send(html);
+    res.redirect('/');
 });
 
 // ════════════════════════════════════════════════════
-// MAIN PAGE — api-page served at root /
+// API DOCS at /docs
 // ════════════════════════════════════════════════════
-app.get('/', (req, res) => {
+app.get('/docs', (req, res) => {
     res.sendFile(path.join(__dirname, 'api-page', 'index.html'));
 });
 
