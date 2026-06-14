@@ -114,6 +114,10 @@ app.use((req, res, next) => {
 // STATIC — Serve /assets folder (banner.jpg, icon.png, etc.)
 // ════════════════════════════════════════════════════
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
+// Also serve compiled frontend assets from public/assets
+app.use('/assets', express.static(path.join(__dirname, 'public', 'assets')));
+// Serve other public static files (favicon, opengraph, etc.)
+app.use(express.static(path.join(__dirname, 'public'), { index: false }));
 
 // ════════════════════════════════════════════════════
 // BLOCK direct access to source code
@@ -173,6 +177,20 @@ fs.readdirSync(apiFolder).forEach((subfolder) => {
 
 console.log(chalk.bgHex('#90EE90').hex('#333').bold(' Load Complete! ✓ '));
 console.log(chalk.bgHex('#90EE90').hex('#333').bold(` Total Routes: ${totalRoutes} `));
+
+// ════════════════════════════════════════════════════
+// LANDING PAGE at /home
+// Inject replaceState so wouter sees "/" and renders the landing page
+// ════════════════════════════════════════════════════
+app.get('/home', (req, res) => {
+    const htmlPath = path.join(__dirname, 'public', 'index.html');
+    let html = fs.readFileSync(htmlPath, 'utf8');
+    html = html.replace(
+        '</head>',
+        '<script>history.replaceState(null,"","/");</script></head>'
+    );
+    res.type('html').send(html);
+});
 
 // ════════════════════════════════════════════════════
 // MAIN PAGE — api-page served at root /
