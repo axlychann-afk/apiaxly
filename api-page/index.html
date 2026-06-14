@@ -577,7 +577,10 @@ async function executeTryOut(ev) {
   const fd = new FormData(document.getElementById('tryout-form'));
 
   let url = path;
-  const fetchOpts = { method };
+  const ctrl = new AbortController();
+  const TIMEOUT_MS = 120_000; // 2 min — AI endpoints can be slow
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  const fetchOpts = { method, signal: ctrl.signal };
 
   if (method === 'GET') {
     const qs = new URLSearchParams();
@@ -596,10 +599,18 @@ async function executeTryOut(ev) {
   const respContent = document.getElementById('resp-content');
   const statusBadge = document.getElementById('resp-status');
   respEl.classList.remove('hidden');
-  respContent.innerHTML = '<div class="flex justify-center py-4"><div class="w-6 h-6 border-2 border-white/10 border-t-indigo-400 rounded-full" style="animation:spin .8s linear infinite"></div></div>';
+  respContent.innerHTML = '<div class="flex flex-col items-center gap-2 py-4"><div class="w-6 h-6 border-2 border-white/10 border-t-indigo-400 rounded-full" style="animation:spin .8s linear infinite"></div><p id="wait-hint" class="text-[10px] text-slate-600"></p></div>';
+
+  // Show "still processing…" hint after 10 s so the user doesn't think it froze
+  const hintTimer = setTimeout(() => {
+    const el = document.getElementById('wait-hint');
+    if (el) el.textContent = 'Masih memproses… endpoint AI bisa lambat, harap tunggu.';
+  }, 10_000);
 
   try {
     const res = await fetch(url, fetchOpts);
+    clearTimeout(timer);
+    clearTimeout(hintTimer);
     const ct  = res.headers.get('content-type') || '';
     const sc  = res.status;
 
@@ -628,11 +639,16 @@ async function executeTryOut(ev) {
       respContent.innerHTML = `<pre class="text-slate-200 text-[11px] leading-relaxed">${esc(txt)}</pre>`;
     }
   } catch (err) {
-    _lastResp = String(err);
-    statusBadge.textContent = 'Error';
+    clearTimeout(timer);
+    clearTimeout(hintTimer);
+    const isTimeout = err instanceof DOMException && err.name === 'AbortError';
+    _lastResp = isTimeout ? 'Request timeout (>2 menit)' : String(err);
+    statusBadge.textContent = isTimeout ? 'Timeout' : 'Error';
     statusBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-mono bg-red-500/20 text-red-400 border border-red-500/20';
     statusBadge.classList.remove('hidden');
-    respContent.innerHTML = `<pre class="text-red-400 text-[11px]">${esc(String(err))}</pre>`;
+    respContent.innerHTML = isTimeout
+      ? `<p class="text-yellow-400 text-xs">⏱ Timeout — endpoint AI ini terlalu lambat untuk dicoba langsung di browser.<br>Gunakan via WhatsApp bot atau cURL di terminal.</p>`
+      : `<pre class="text-red-400 text-[11px]">${esc(String(err))}</pre>`;
   } finally {
     setExecBusy(false);
   }

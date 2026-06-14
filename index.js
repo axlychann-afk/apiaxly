@@ -9,23 +9,19 @@ const multer = require('multer'); // TAMBAHKAN INI
 require("./function.js");
 
 // ════════════════════════════════════════════════════
-// AXLY API · Stats & Persistence (auto-added)
+// AXLY API · Stats & Persistence
 // ════════════════════════════════════════════════════
 const STATS_FILE = path.join(__dirname, 'runtime-stats.json');
 global.startTime = Date.now();
 global.totalreq  = 0;
-
 try {
   const _sv = JSON.parse(fs.readFileSync(STATS_FILE, 'utf8'));
   global.totalreq = _sv.totalreq || 0;
 } catch (_e) {}
-
 function _saveStats() {
   try { fs.writeFileSync(STATS_FILE, JSON.stringify({ totalreq: global.totalreq }), 'utf8'); }
   catch (_e) {}
 }
-
-// Save every 5 s + on process exit so counts survive restarts
 setInterval(_saveStats, 5000);
 process.on('exit',    _saveStats);
 process.on('SIGTERM', () => { _saveStats(); process.exit(0); });
@@ -197,7 +193,7 @@ app.get('/', (req, res) => {
 });
 
 
-// ── /api/stats ────────────────────────────────────────────────
+// ── /api/stats ──────────────────────────────────────
 app.get('/api/stats', (req, res) => {
   res.json({
     status: true,
@@ -207,7 +203,7 @@ app.get('/api/stats', (req, res) => {
     uptime:        process.uptime()
   });
 });
-// ─────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────
 
 // Error handler 404 & 500 + batch log
 app.use((req, res, next) => {
