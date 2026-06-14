@@ -8,19 +8,29 @@ const multer = require('multer'); // TAMBAHKAN INI
 
 require("./function.js");
 
-// ── Axly API · Stats & Persistence ──────────────────────────
+// ════════════════════════════════════════════════════
+// AXLY API · Stats & Persistence (auto-added)
+// ════════════════════════════════════════════════════
 const STATS_FILE = path.join(__dirname, 'runtime-stats.json');
 global.startTime = Date.now();
 global.totalreq  = 0;
+
 try {
-  const _saved = JSON.parse(fs.readFileSync(STATS_FILE, 'utf8'));
-  global.totalreq = _saved.totalreq || 0;
+  const _sv = JSON.parse(fs.readFileSync(STATS_FILE, 'utf8'));
+  global.totalreq = _sv.totalreq || 0;
 } catch (_e) {}
-setInterval(() => {
+
+function _saveStats() {
   try { fs.writeFileSync(STATS_FILE, JSON.stringify({ totalreq: global.totalreq }), 'utf8'); }
   catch (_e) {}
-}, 30000);
-// ─────────────────────────────────────────────────────────────
+}
+
+// Save every 5 s + on process exit so counts survive restarts
+setInterval(_saveStats, 5000);
+process.on('exit',    _saveStats);
+process.on('SIGTERM', () => { _saveStats(); process.exit(0); });
+process.on('SIGINT',  () => { _saveStats(); process.exit(0); });
+// ════════════════════════════════════════════════════
 
 
 const app = express();
@@ -122,7 +132,7 @@ global.apikey = settings.apiSettings.apikey;
 // Custom Log + Wrap res.json + Batch log semua response
 app.use((req, res, next) => {
     console.log(chalk.bgHex('#FFFF99').hex('#333').bold(` Request Route: ${req.path} `));
-    global.totalreq += 1;
+    if (req.path !== '/api/stats') global.totalreq += 1;
 
     const start = Date.now();
     const originalJson = res.json;
@@ -192,9 +202,9 @@ app.get('/api/stats', (req, res) => {
   res.json({
     status: true,
     totalRequests: global.totalreq,
-    startTime: global.startTime,
-    runtime: Date.now() - global.startTime,
-    uptime: process.uptime()
+    startTime:     global.startTime,
+    runtime:       Date.now() - global.startTime,
+    uptime:        process.uptime()
   });
 });
 // ─────────────────────────────────────────────────────────────
