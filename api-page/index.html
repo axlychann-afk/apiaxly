@@ -171,7 +171,7 @@
     <div class="relative">
       <div class="absolute inset-0 bg-indigo-500 blur-2xl opacity-35 rounded-full scale-150"></div>
       <div class="w-16 h-16 rounded-2xl relative z-10 overflow-hidden border border-white/10">
-        <img src="/api/assets/icon.png" alt="logo" class="w-full h-full object-cover">
+        <img src="/assets/icon.png" alt="logo" class="w-full h-full object-cover">
       </div>
     </div>
     <h1 class="text-3xl font-bold gradient-text">Axly API</h1>
@@ -483,7 +483,7 @@ let lastRuntime = 0, lastTotal = 0;
 
 async function tickStats() {
   try {
-    const r = await fetch('/api/stats');
+    const r = await fetch('/stats');
     if (!r.ok) return;
     const d = await r.json();
     lastRuntime = d.runtime || 0;
@@ -730,11 +730,11 @@ async function loadApis() {
   try {
     let data = null;
     try {
-      const r = await fetch('/api/settings');
+      const r = await fetch('/settings');
       if (r.ok) data = await r.json();
     } catch {}
     if (!data) {
-      const r = await fetch('/api/assets/settings.json');
+      const r = await fetch('/assets/settings.json');
       data = await r.json();
     }
 

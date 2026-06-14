@@ -29,7 +29,7 @@ process.on('SIGINT',  () => { _saveStats(); process.exit(0); });
 // ════════════════════════════════════════════════════
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 const upload = multer({ storage: multer.memoryStorage() });
 global.upload = upload;
@@ -111,19 +111,13 @@ app.use((req, res, next) => {
 });
 
 // ════════════════════════════════════════════════════
-// STATIC — Landing Page at /
-// ════════════════════════════════════════════════════
-app.use(express.static(path.join(__dirname, 'public')));
-
-// ════════════════════════════════════════════════════
-// DASHBOARD at /dashboard
+// STATIC — Serve /assets folder (banner.jpg, icon.png, etc.)
 // ════════════════════════════════════════════════════
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 
-app.get(['/dashboard', '/dashboard/'], (req, res) => {
-    res.sendFile(path.join(__dirname, 'api-page', 'index.html'));
-});
-
+// ════════════════════════════════════════════════════
+// BLOCK direct access to source code
+// ════════════════════════════════════════════════════
 app.use('/src', (req, res) => {
     res.status(403).json({ error: 'Forbidden access' });
 });
@@ -139,9 +133,19 @@ app.get('/stats', (req, res) => {
   });
 });
 
-// Settings endpoint (for the dashboard HTML)
+// Settings endpoint
 app.get('/settings', (req, res) => {
   res.json(settings);
+});
+
+// Notifications endpoint
+app.get('/notifications', (req, res) => {
+  try {
+    const notifs = JSON.parse(fs.readFileSync(path.join(__dirname, 'api-page', 'notifications.json'), 'utf-8'));
+    res.json(notifs);
+  } catch (_e) {
+    res.json([]);
+  }
 });
 
 // ════════════════════════════════════════════════════
@@ -171,19 +175,17 @@ console.log(chalk.bgHex('#90EE90').hex('#333').bold(' Load Complete! ✓ '));
 console.log(chalk.bgHex('#90EE90').hex('#333').bold(` Total Routes: ${totalRoutes} `));
 
 // ════════════════════════════════════════════════════
-// SPA fallback — serve landing page for unknown routes
+// MAIN PAGE — api-page served at root /
+// ════════════════════════════════════════════════════
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'api-page', 'index.html'));
+});
+
+// ════════════════════════════════════════════════════
+// 404 fallback
 // ════════════════════════════════════════════════════
 app.use((req, res, next) => {
-    // If it looks like an API route (not a file/dashboard), return 404 JSON
-    if (req.path.startsWith('/dashboard')) {
-        return res.status(404).sendFile(path.join(__dirname, 'api-page', '404.html'));
-    }
-    // Otherwise serve landing page (SPA fallback)
-    const indexPath = path.join(__dirname, 'public', 'index.html');
-    if (fs.existsSync(indexPath)) {
-        return res.sendFile(indexPath);
-    }
-    next();
+    res.status(404).sendFile(path.join(__dirname, 'api-page', '404.html'));
 });
 
 // Global error handler
@@ -195,8 +197,6 @@ app.use((err, req, res, next) => {
 
 app.listen(PORT, () => {
     console.log(chalk.bgHex('#90EE90').hex('#333').bold(` ✅ Axly API running at http://localhost:${PORT} `));
-    console.log(chalk.bgHex('#90EE90').hex('#333').bold(` 🏠 Landing  : http://localhost:${PORT}/ `));
-    console.log(chalk.bgHex('#90EE90').hex('#333').bold(` 📊 Dashboard: http://localhost:${PORT}/dashboard `));
 });
 
 module.exports = app;
