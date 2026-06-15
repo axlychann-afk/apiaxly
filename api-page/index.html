@@ -409,29 +409,28 @@
       <div class="step-card">
         <div class="step-num">1</div>
         <div>
-          <p class="text-sm font-semibold text-white mb-1">Dapatkan API Key</p>
+          <p class="text-sm font-semibold text-white mb-1">Pilih Kategori</p>
           <p class="text-xs text-slate-500 leading-relaxed">
-            API key default: <code class="bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded-md text-[11px]">axly-api</code>
-            — tambahkan ke request kamu sebagai query param <code class="bg-white/5 text-slate-300 px-1.5 py-0.5 rounded-md text-[11px]">?apikey=axly-api</code>
+            Geser kartu kategori di bawah — tersedia <span class="text-indigo-400 font-semibold">AI, Anime, Download, Tools</span> dan banyak lagi. Tidak perlu daftar atau login, langsung pakai!
           </p>
         </div>
       </div>
       <div class="step-card">
         <div class="step-num">2</div>
         <div>
-          <p class="text-sm font-semibold text-white mb-1">Pilih Endpoint</p>
+          <p class="text-sm font-semibold text-white mb-1">Coba Endpoint</p>
           <p class="text-xs text-slate-500 leading-relaxed">
-            Geser kartu kategori di bawah untuk melihat semua endpoint. Setiap kategori punya menu tersendiri — klik <span class="text-indigo-400">Try Out</span> untuk langsung coba.
+            Klik tombol <span class="text-indigo-400 font-semibold">Try Out</span> di endpoint mana saja, isi parameter yang dibutuhkan, lalu klik <span class="text-indigo-400 font-semibold">Execute</span> untuk langsung melihat hasilnya.
           </p>
         </div>
       </div>
       <div class="step-card">
         <div class="step-num">3</div>
         <div>
-          <p class="text-sm font-semibold text-white mb-1">Kirim Request</p>
+          <p class="text-sm font-semibold text-white mb-1">Integrasikan ke Bot</p>
           <p class="text-xs text-slate-500 leading-relaxed">
             Base URL: <code class="bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded-md text-[11px]">https://axlyapi.qzz.io</code>
-            — semua endpoint menggunakan method <span class="text-green-400 font-semibold">GET</span> kecuali yang ditandai <span class="text-blue-400 font-semibold">POST</span>.
+            — gunakan endpoint langsung di bot WhatsApp kamu. Semua <span class="text-green-400 font-semibold">GET</span> kecuali yang ditandai <span class="text-blue-400 font-semibold">POST</span>.
           </p>
         </div>
       </div>
@@ -631,7 +630,7 @@ function carSetup(cats){
   // size
   var vw=Math.min(wrap.clientWidth||600,600);
   var cw=Math.min(vw,520);
-  var gh=Math.min(window.innerHeight*0.72,680);
+  var gh=Math.min(window.innerHeight*0.82,820);
   CAR.cw=cw; CAR.gh=gh;
 
   // CSS vars
