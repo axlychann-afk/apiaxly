@@ -631,12 +631,12 @@ function carSetup(cats){
   // size
   var vw=Math.min(wrap.clientWidth||600,600);
   var cw=Math.min(vw,520);
-  var gh=Math.min(window.innerHeight*0.52,480);
+  var gh=Math.min(window.innerHeight*0.72,680);
   CAR.cw=cw; CAR.gh=gh;
 
   // CSS vars
   document.documentElement.style.setProperty('--cw',cw+'px');
-  document.documentElement.style.setProperty('--ch',gh-80+'px');
+  document.documentElement.style.setProperty('--ch',gh-90+'px');
 
   wrap.style.height=gh+'px';
 
